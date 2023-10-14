@@ -1,0 +1,56 @@
+version: '3.7'
+
+services:
+  bewise-db:
+    container_name: ${POSTGRES_SERVER}
+    image: postgres:13.0-alpine
+    restart: always
+    volumes:
+      - bewise-data:/var/lib/postgresql/
+    env_file:
+      - ./.env
+    command: -p ${POSTGRES_PORT}
+    expose:
+      - ${POSTGRES_PORT}
+    networks:
+      - bewise
+
+  bewise-redis:
+    container_name: ${REDIS_HOST}
+    image: redis:latest
+    restart: always
+    ports:
+      - ${REDIS_PORT}:${REDIS_PORT}
+    volumes:
+      - bewise-redis_data:/var/lib/redis/bewise/
+    command: >
+        --requirepass ${REDIS_PASSWORD}
+    networks:
+      - bewise
+
+  bewise-backend:
+    container_name: bewise-backend
+    build:
+      context: ../backend
+      dockerfile: Dockerfile
+    restart: always
+    env_file:
+      - ./.env
+    depends_on:
+      - bewise-db
+      - bewise-redis
+    command: uvicorn application.main:app --reload --host 0.0.0.0
+    ports:
+      - 9991:8000
+    volumes:
+      - ../backend:/srv/www/app/
+    networks:
+      - bewise
+
+
+volumes:
+  bewise-data:
+  bewise-redis_data:
+
+networks:
+  bewise:
